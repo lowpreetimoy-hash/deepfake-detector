@@ -1,0 +1,9 @@
+dvenv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+models/*.pth
+.vscode/
+*.tmp
+*.log
