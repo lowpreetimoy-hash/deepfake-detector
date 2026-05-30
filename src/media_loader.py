@@ -35,12 +35,11 @@ def get_file_type(file_path):
 
 def load_image(file_path):
     """
-    Loads and preprocesses a single image file.
-    Returns: numpy array of shape (224, 224, 3) or None if failed
+    Loads image without resizing.
+    Resizing happens after face detection.
     """
     try:
         image = Image.open(file_path).convert('RGB')
-        image = image.resize(TARGET_SIZE)
         image_array = np.array(image)
         return image_array
 

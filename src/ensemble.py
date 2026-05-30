@@ -4,13 +4,13 @@ import numpy as np
 # These reflect how reliable each detector is
 # Can be tuned after fine-tuning
 DETECTOR_WEIGHTS = {
-    'face_swap': 0.25,
-    'ai_generated': 0.55,
-    'manual_edit': 0.25
+    'face_swap': 0.35,
+    'ai_generated': 0.35,
+    'manual_edit': 0.30
 }
 
 # Threshold above which final result is FAKE
-FAKE_THRESHOLD = 0.5
+FAKE_THRESHOLD = 0.80
 
 # Individual detector threshold for reason generation
 REASON_THRESHOLD = 0.5
