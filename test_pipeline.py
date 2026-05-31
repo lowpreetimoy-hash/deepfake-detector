@@ -5,7 +5,7 @@ from src.detectors import load_detectors, run_detectors
 from src.ensemble import run_ensemble
 
 # Change this path for each test
-IMAGE_PATH = r'D:\DeepFake Detector\tested photos\real_webcam.jpg'
+IMAGE_PATH = r'D:\DeepFake Detector\tested photos\real_webcam1 (1).jpg'
 
 result = load_media(IMAGE_PATH)
 validation = validate_media_for_faces(result['frames'])

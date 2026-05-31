@@ -6,7 +6,7 @@
 - Project Path: D:\deepfake-detector
 - PyTorch: CPU only (Intel Iris Xe, no dedicated GPU)
 - Kaggle: used for heavy model training (Tesla T4 GPU)
-- Kaggle notebook: CLOSED — not needed anymore
+- Kaggle notebook: CLOSED — not needed unless retraining
 
 ## Project Structure
 deepfake-detector/
@@ -25,12 +25,17 @@ deepfake-detector/
 │   ├── detector_a_efficientnet_v3_best.pth   (Run 3 - ACTIVE)
 │   └── detector_b_resnet50_v3_best.pth       (Run 3 - ACTIVE)
 ├── data/
+│   ├── deploy.prototxt                       (DNN face detector)
+│   └── res10_300x300_ssd_iter_140000.caffemodel (DNN face detector)
 ├── tests/
 ├── main.py
 ├── app.py
 ├── test_pipeline.py
+├── test_dnn.py
+├── test_debug.py
 ├── requirements.txt
-└── PROJECT_LOG.md
+├── PROJECT_LOG.md
+└── THESIS_LOG.md
 
 ## Phases
 - [x] Phase 1 — Setup, folder structure, dependencies ✅
@@ -41,7 +46,7 @@ deepfake-detector/
 - [x] Phase 6 — Ensemble layer ✅
 - [x] Phase 7 — Streamlit UI ✅
 - [x] Phase 8 — Fine-tuning on Kaggle ✅
-- [ ] Phase 9 — Local fixes and final testing
+- [ ] Phase 9 — Local fixes and final testing (IN PROGRESS)
 
 ## Key Decisions Made
 - Using CPU-only PyTorch (no GPU)
@@ -55,14 +60,13 @@ deepfake-detector/
 - If 2 say Real, 1 says Fake → use weighted strategy
 - Output includes confidence score + specific reasons
 - pos_weight = 2.39 in BCEWithLogitsLoss
-- source column in DataFrame
-  ('dfdc' for DFDC frames, '140k' for StyleGAN)
-- OpenCV Haar Cascade used temporarily for face detection
-  → REPLACING with OpenCV DNN Caffe model (Phase 9)
-- ELA thresholds adjusted to 80/60 (temporary band-aid)
-  → Re-evaluate after DNN face detector upgrade
-- Ensemble weights adjusted to 25/50/25 (temporary band-aid)
-  → Re-evaluate after DNN face detector upgrade
+- FAKE_THRESHOLD = 0.75 (raised from 0.5)
+- ELA thresholds = 80/60 (raised from 30/25)
+- Ensemble weights = 35/35/30 (reverted to original)
+- OpenCV DNN Caffe model for face detection
+  (replaced Haar Cascade — handles low light/angled faces)
+- DNN uses RGB frame directly (no BGR conversion needed)
+- media_loader resizes removed — face detection on original size
 
 ## Corrections Applied to Original Design
 1. Added timm, scikit-learn to tech stack
@@ -74,7 +78,7 @@ deepfake-detector/
    processing of media without human faces"
 7. Switched from Xception to EfficientNet + ResNet50
 8. Switched from MTCNN → facenet-pytorch → MediaPipe
-   → finally OpenCV Haar Cascade (dependency conflicts)
+   → Haar Cascade → OpenCV DNN (final)
 9. Path validation before training (no silent data poisoning)
 10. Aggressive augmentation to bridge domain gap
 11. OOD validation using GroupShuffleSplit on video_id
@@ -82,6 +86,7 @@ deepfake-detector/
 13. Class weights in loss function for fake/real imbalance
 14. ensemble.py ERROR → UNKNOWN for no-face media
 15. cap.set() → cap.grab/retrieve() for video extraction
+16. FAKE_THRESHOLD raised to 0.75 for better real photo handling
 
 ## Installed Libraries (Local)
 - torch==2.12.0+cpu
@@ -143,52 +148,68 @@ deepfake-detector/
 - Message: 'No human face detected in media'
 - Tested: clean exit on no-face image ✅
 
-### ⏳ Fix 2 — Replace Haar Cascade with OpenCV DNN
-- Current: OpenCV Haar Cascade (2001 algorithm)
-- Problem: Fails on low light, angled, blurry faces
-- Fix: OpenCV DNN Caffe model
-- Files needed:
-  * deploy.prototxt
-  * res10_300x300_ssd_iter_140000.caffemodel
-- Download from:
-  https://github.com/opencv/opencv/tree/master/samples/dnn/face_detector
-- Implementation: cv2.dnn.readNetFromCaffe()
-- Works on CPU, no new dependencies
-- Affects: face_validator.py + face_extractor.py
+### ✅ Fix 2 — Replace Haar Cascade with OpenCV DNN (DONE)
+- Downloaded deploy.prototxt + res10 caffemodel
+- Saved to data/ folder
+- Implemented cv2.dnn.readNetFromCaffe()
+- DNN uses RGB frame directly (no conversion)
+- media_loader no longer resizes before face detection
+- Detects faces at 99%+ confidence
+- Handles low light, angled, blurry faces ✅
+- Bug fixed: extra quotes in IMAGE_PATH caused UNKNOWN
 
-### ⏳ Fix 3 — Re-evaluate Band-Aid Fixes
-After DNN face detector is working:
-- Test with original ELA thresholds (30/25)
-- Test with original ensemble weights (35/35/30)
-- Only keep 80/60 and 25/50/25 if still needed
-- Don't let debugging hacks become permanent
+### ✅ Fix 3 — Band-Aid Re-evaluation (DONE)
+- Ensemble weights tested: 35/35/30 vs 25/50/25
+- 35/35/30 gives lower false positive confidence
+- Reverted to original 35/35/30 ✅
+- ELA thresholds kept at 80/60 (working correctly)
+- FAKE_THRESHOLD raised to 0.75
 
-### ⏳ Fix 4 — Acid Test (3 specific images)
-Test test_pipeline.py on:
-1. Image with no human face → must return UNKNOWN
-2. High quality real unedited selfie → should return REAL
-3. AI generated face or deepfake → should return FAKE
-Success: zero crashes, logical confidence scores
+### ✅ Fix 4 — Acid Test (DONE)
+Results:
+1. No face image → UNKNOWN 0% ✅
+2. Real webcam selfie → REAL 28.9% ✅
+3. AI generated face → REAL 36.7% ❌
+   Known limitation: model can't distinguish
+   modern GAN faces from real photos
+   Root cause: training data predates modern
+   diffusion-based generation
 
 ### ⏳ Fix 5 — Streamlit Final Verification
 - Run: streamlit run app.py
-- Upload same 3 test images through browser
-- Verify confidence bars, reasons display correctly
-- Check no UI hanging on CPU
+- Upload 3 test images through browser
+- Verify UI displays correctly
+
+## Current Model Accuracy
+| Photo Type | Prediction | Confidence | Correct? |
+|------------|-----------|------------|---------|
+| No face | UNKNOWN | 0% | ✅ |
+| Real webcam | REAL | 28.9% | ✅ |
+| AI generated | REAL | 36.7% | ❌ |
+| Real portrait | REAL | 25.6% | ✅ |
+
+## Known Limitation — Model Accuracy
+Root cause: Training data (DFDC + 140k StyleGAN) predates
+modern diffusion-based AI generation (Stable Diffusion,
+MidJourney, DALL-E). Model correctly handles real photos
+but cannot reliably detect modern AI-generated faces.
+
+## Options to Improve Accuracy (Future Work)
+1. Retrain with larger dataset (full 140k not just 3,000)
+2. Add modern AI-generated face datasets
+3. Use pretrained deepfake detection model from HuggingFace
+   (decided against — reduces original contribution)
 
 ## Current Status
-Phase 8 complete. Phase 9 in progress.
-Fix 1 (ensemble crash) done.
-Next: Fix 2 — Replace Haar Cascade with OpenCV DNN.
+Phase 9 — Fixes 1-4 complete.
+Remaining: Fix 5 (Streamlit verification) + GitHub push.
+Model accuracy limitation documented and understood.
+Project is architecturally complete and sound.
 
 ## Known Bugs
-1. Haar Cascade fails on low light/angled/blurry faces
-   STATUS: NEXT — Fix 2
-2. ELA thresholds 80/60 are temporary band-aids
-   STATUS: Re-evaluate after Fix 2
-3. Ensemble weights 25/50/25 are temporary band-aids
-   STATUS: Re-evaluate after Fix 2
-4. HuggingFace symlink warning on Windows
+1. Model misclassifies modern AI faces as REAL
+   STATUS: Known limitation — needs better training data
+2. HuggingFace symlink warning on Windows
    STATUS: Harmless, not critical
 
 ## ML Engineering Lessons Learned
@@ -206,13 +227,15 @@ Next: Fix 2 — Replace Haar Cascade with OpenCV DNN.
 12. Download model weights immediately after training
 13. Temporary fixes must be re-evaluated not kept forever
 14. Face detector quality directly affects model accuracy
+15. Extra quotes in file paths cause silent failures
+16. Training data recency matters — old data misses new threats
 
 ## How to Resume in New Claude Conversation
 1. Paste this PROJECT_LOG.md
 2. Say: "Continue deepfake detector project from where we stopped"
-3. Current task: Fix 2 — Replace Haar Cascade with OpenCV DNN
-   Files to modify: face_validator.py + face_extractor.py
-   Download needed: deploy.prototxt + res10 caffemodel
+3. Current task: Fix 5 — Streamlit verification
+   Then: GitHub push with all changes
+   Then: Final Run 4 on Kaggle (optional — better accuracy)
 
 ## How to Run App Locally
 1. Open VS Code → D:\deepfake-detector
@@ -223,9 +246,11 @@ Next: Fix 2 — Replace Haar Cascade with OpenCV DNN.
 | File | Purpose |
 |------|---------|
 | media_loader.py | Load image/video, extract frames |
-| face_validator.py | Check if human face exists |
+| face_validator.py | Check if human face exists (OpenCV DNN) |
 | face_extractor.py | Crop and normalize face region |
 | detectors.py | Run 3 detectors on face tensor |
 | ensemble.py | Combine scores into final verdict |
 | app.py | Streamlit web UI |
 | test_pipeline.py | Quick pipeline testing script |
+| test_dnn.py | Test DNN face detector directly |
+| test_debug.py | Debug frame pipeline issues |

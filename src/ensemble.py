@@ -10,7 +10,7 @@ DETECTOR_WEIGHTS = {
 }
 
 # Threshold above which final result is FAKE
-FAKE_THRESHOLD = 0.80
+FAKE_THRESHOLD = 0.75
 
 # Individual detector threshold for reason generation
 REASON_THRESHOLD = 0.5
