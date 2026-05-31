@@ -1,3 +1,5 @@
+<img width="1440" height="1046" alt="image" src="https://github.com/user-attachments/assets/500e010c-b8e4-4a81-9957-d566b606e4a8" />
+
 # 🔍 Deepfake Detector
 
 A multi-modal media authenticity analysis system that detects manipulated human faces in images and videos using ensemble learning.
