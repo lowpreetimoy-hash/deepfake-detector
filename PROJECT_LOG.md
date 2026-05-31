@@ -25,14 +25,15 @@ deepfake-detector/
 │   ├── detector_a_efficientnet_v3_best.pth   (Run 3 - ACTIVE)
 │   └── detector_b_resnet50_v3_best.pth       (Run 3 - ACTIVE)
 ├── data/
-│   ├── deploy.prototxt                       (DNN face detector)
-│   └── res10_300x300_ssd_iter_140000.caffemodel (DNN face detector)
+│   ├── deploy.prototxt
+│   └── res10_300x300_ssd_iter_140000.caffemodel
 ├── tests/
 ├── main.py
 ├── app.py
 ├── test_pipeline.py
 ├── test_dnn.py
 ├── test_debug.py
+├── .gitignore
 ├── requirements.txt
 ├── PROJECT_LOG.md
 └── THESIS_LOG.md
@@ -46,7 +47,8 @@ deepfake-detector/
 - [x] Phase 6 — Ensemble layer ✅
 - [x] Phase 7 — Streamlit UI ✅
 - [x] Phase 8 — Fine-tuning on Kaggle ✅
-- [ ] Phase 9 — Local fixes and final testing (IN PROGRESS)
+- [x] Phase 9 — Local fixes and final testing ✅
+- [ ] Phase 10 — Future improvements (optional)
 
 ## Key Decisions Made
 - Using CPU-only PyTorch (no GPU)
@@ -60,13 +62,13 @@ deepfake-detector/
 - If 2 say Real, 1 says Fake → use weighted strategy
 - Output includes confidence score + specific reasons
 - pos_weight = 2.39 in BCEWithLogitsLoss
-- FAKE_THRESHOLD = 0.75 (raised from 0.5)
-- ELA thresholds = 80/60 (raised from 30/25)
-- Ensemble weights = 35/35/30 (reverted to original)
+- FAKE_THRESHOLD = 0.75
+- ELA thresholds = 80/60
+- Ensemble weights = 35/35/30
 - OpenCV DNN Caffe model for face detection
-  (replaced Haar Cascade — handles low light/angled faces)
-- DNN uses RGB frame directly (no BGR conversion needed)
-- media_loader resizes removed — face detection on original size
+- DNN uses RGB frame directly
+- media_loader loads original size for face detection
+- GitHub: https://github.com/lowpreetimoy-hash/deepfake-detector
 
 ## Corrections Applied to Original Design
 1. Added timm, scikit-learn to tech stack
@@ -86,7 +88,7 @@ deepfake-detector/
 13. Class weights in loss function for fake/real imbalance
 14. ensemble.py ERROR → UNKNOWN for no-face media
 15. cap.set() → cap.grab/retrieve() for video extraction
-16. FAKE_THRESHOLD raised to 0.75 for better real photo handling
+16. FAKE_THRESHOLD raised to 0.75
 
 ## Installed Libraries (Local)
 - torch==2.12.0+cpu
@@ -121,7 +123,7 @@ deepfake-detector/
 ### Run 3 — Mixed Dataset v2 (COMPLETE ✅)
 #### Fixes Applied
 1. Path validation — pre-filter corrupt files
-2. Domain augmentation — GaussianBlur + JPEG + ColorJitter
+2. Domain augmentation — GaussianBlur + ColorJitter
 3. Balanced domain — 140k real capped at 1,500
 4. OOD validation — GroupShuffleSplit on video_id
 
@@ -136,81 +138,121 @@ deepfake-detector/
 #### Results
 - Detector A (EfficientNet v3): 77.18% OOD accuracy
 - Detector B (ResNet50 v3):     76.03% OOD accuracy
-- Note: Honest real-world scores on unseen camera footage
 
-## Phase 9 — Local Fixes Checklist
+## Phase 9 — Local Fixes (ALL COMPLETE ✅)
 
-### ✅ Fix 1 — ensemble.py Silent Crash (DONE)
-- Changed 'ERROR' → 'UNKNOWN' prediction
-- Added total_faces_analyzed: 0
-- Added fake_faces_found: 0
-- Added final_score: 0
-- Message: 'No human face detected in media'
-- Tested: clean exit on no-face image ✅
+### ✅ Fix 1 — ensemble.py Silent Crash
+- Changed ERROR → UNKNOWN
+- Added missing keys to return dict
+- Clean exit on no-face media
 
-### ✅ Fix 2 — Replace Haar Cascade with OpenCV DNN (DONE)
+### ✅ Fix 2 — Replace Haar Cascade with OpenCV DNN
 - Downloaded deploy.prototxt + res10 caffemodel
-- Saved to data/ folder
-- Implemented cv2.dnn.readNetFromCaffe()
-- DNN uses RGB frame directly (no conversion)
-- media_loader no longer resizes before face detection
 - Detects faces at 99%+ confidence
-- Handles low light, angled, blurry faces ✅
-- Bug fixed: extra quotes in IMAGE_PATH caused UNKNOWN
+- Handles low light, angled, blurry faces
+- Bug fixed: RGB frame used directly
 
-### ✅ Fix 3 — Band-Aid Re-evaluation (DONE)
-- Ensemble weights tested: 35/35/30 vs 25/50/25
-- 35/35/30 gives lower false positive confidence
-- Reverted to original 35/35/30 ✅
-- ELA thresholds kept at 80/60 (working correctly)
-- FAKE_THRESHOLD raised to 0.75
+### ✅ Fix 3 — Band-Aid Re-evaluation
+- Reverted to 35/35/30 ensemble weights
+- Kept ELA thresholds at 80/60
+- FAKE_THRESHOLD set to 0.75
 
-### ✅ Fix 4 — Acid Test (DONE)
-Results:
-1. No face image → UNKNOWN 0% ✅
-2. Real webcam selfie → REAL 28.9% ✅
-3. AI generated face → REAL 36.7% ❌
-   Known limitation: model can't distinguish
-   modern GAN faces from real photos
-   Root cause: training data predates modern
-   diffusion-based generation
+### ✅ Fix 4 — Acid Test
+| Image | Prediction | Correct? |
+|-------|-----------|---------|
+| No face | UNKNOWN 0% | ✅ |
+| Real webcam | REAL 28.9% | ✅ |
+| AI generated | REAL 36.7% | ❌ |
+| Real portrait | REAL 25.6% | ✅ |
 
-### ⏳ Fix 5 — Streamlit Final Verification
-- Run: streamlit run app.py
-- Upload 3 test images through browser
-- Verify UI displays correctly
+### ✅ Fix 5 — Streamlit Final Verification
+- File upload working ✅
+- Image preview working ✅
+- Analyze button working ✅
+- Green/red verdict banners working ✅
+- Confidence bar working ✅
+- Detector breakdown working ✅
+- Face crop display working ✅
+- No-face warning working ✅
+- No UI crashes or hangs ✅
 
-## Current Model Accuracy
-| Photo Type | Prediction | Confidence | Correct? |
-|------------|-----------|------------|---------|
-| No face | UNKNOWN | 0% | ✅ |
-| Real webcam | REAL | 28.9% | ✅ |
-| AI generated | REAL | 36.7% | ❌ |
-| Real portrait | REAL | 25.6% | ✅ |
+## Current Model Performance
+Real webcam selfie → REAL ✅
+Real portrait photo → REAL ✅
+No face image → UNKNOWN ✅
+AI generated face → REAL ❌ (known limitation)
+Edited/filtered photo → FAKE ✅
+## Known Limitation
+Modern AI generated faces (Stable Diffusion, MidJourney,
+DALL-E, thispersondoesnotexist.com) are misclassified as REAL.
 
-## Known Limitation — Model Accuracy
 Root cause: Training data (DFDC + 140k StyleGAN) predates
-modern diffusion-based AI generation (Stable Diffusion,
-MidJourney, DALL-E). Model correctly handles real photos
-but cannot reliably detect modern AI-generated faces.
+modern diffusion-based generation. Model never saw these
+during training so cannot detect them.
 
-## Options to Improve Accuracy (Future Work)
-1. Retrain with larger dataset (full 140k not just 3,000)
-2. Add modern AI-generated face datasets
-3. Use pretrained deepfake detection model from HuggingFace
-   (decided against — reduces original contribution)
+## Future Improvements (Phase 10)
 
-## Current Status
-Phase 9 — Fixes 1-4 complete.
-Remaining: Fix 5 (Streamlit verification) + GitHub push.
-Model accuracy limitation documented and understood.
-Project is architecturally complete and sound.
+### Priority 1 — Better Training Data
+- Add Stable Diffusion generated faces to training
+- Add MidJourney faces to training
+- Add DALL-E faces to training
+- Use full 140k dataset (not just 3,000 samples)
+- Expected accuracy improvement: 85-90% OOD
 
-## Known Bugs
-1. Model misclassifies modern AI faces as REAL
-   STATUS: Known limitation — needs better training data
-2. HuggingFace symlink warning on Windows
-   STATUS: Harmless, not critical
+### Priority 2 — Run 4 on Kaggle
+- Retrain with larger + more diverse dataset
+- Include modern AI generated faces
+- Keep same pipeline architecture
+- Same GroupShuffleSplit OOD validation
+- Expected: correctly detect modern AI faces
+
+### Priority 3 — Real-time Webcam Detection
+- Add webcam input option to Streamlit UI
+- Process frames in real-time
+- Show live prediction overlay
+- Requires: optimized inference pipeline
+
+### Priority 4 — Heatmap Visualization
+- Show which regions of face triggered detection
+- Use Grad-CAM visualization technique
+- Highlight manipulated areas in red
+- Helps user understand WHY prediction was made
+
+### Priority 5 — Audio Deepfake Detection
+- Add audio analysis module
+- Detect AI generated voices
+- Combine with video detection for full media analysis
+- Libraries: librosa, pyaudio
+
+### Priority 6 — Multi-face Analysis
+- Currently analyzes first detected face only
+- Extend to analyze all faces in frame
+- Useful for group photos and videos
+- Return per-face verdict + overall verdict
+
+### Priority 7 — Mobile Application
+- Convert Streamlit to React Native or Flutter
+- On-device inference using ONNX export
+- Real-time camera analysis on phone
+- Share results directly from app
+
+### Priority 8 — API Endpoint
+- Build REST API using FastAPI
+- Allow external applications to use detector
+- Return JSON with prediction + confidence
+- Enable integration with social media platforms
+
+### Priority 9 — Confidence Calibration
+- Current confidence scores not well-calibrated
+- Apply temperature scaling post-training
+- Makes confidence scores more meaningful
+- 75% confidence should mean 75% correct
+
+### Priority 10 — Weighted Frame Confidence for Video
+- Current: >50% fake frames = fake video
+- Upgrade: weighted average of frame confidences
+- High confidence frames weigh more than low confidence
+- More robust video-level verdict
 
 ## ML Engineering Lessons Learned
 1. High accuracy on biased data means nothing
@@ -229,18 +271,24 @@ Project is architecturally complete and sound.
 14. Face detector quality directly affects model accuracy
 15. Extra quotes in file paths cause silent failures
 16. Training data recency matters — old data misses new threats
+17. RGB vs BGR color space bugs cause silent failures
+18. Always test face detector independently before pipeline
+19. Pretrained models reduce original contribution
+20. Document failures honestly — they are thesis content
 
 ## How to Resume in New Claude Conversation
 1. Paste this PROJECT_LOG.md
 2. Say: "Continue deepfake detector project from where we stopped"
-3. Current task: Fix 5 — Streamlit verification
-   Then: GitHub push with all changes
-   Then: Final Run 4 on Kaggle (optional — better accuracy)
+3. Project is COMPLETE — only future improvements remain
 
 ## How to Run App Locally
 1. Open VS Code → D:\deepfake-detector
 2. Open terminal → dvenv\Scripts\activate
 3. streamlit run app.py
+
+## GitHub
+Repository: https://github.com/lowpreetimoy-hash/deepfake-detector
+Push updates: git add . → git commit -m "message" → git push
 
 ## File Purposes Quick Reference
 | File | Purpose |
@@ -254,3 +302,5 @@ Project is architecturally complete and sound.
 | test_pipeline.py | Quick pipeline testing script |
 | test_dnn.py | Test DNN face detector directly |
 | test_debug.py | Debug frame pipeline issues |
+| PROJECT_LOG.md | Technical progress tracker |
+| THESIS_LOG.md | Thesis evidence and lessons |
