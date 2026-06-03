@@ -159,10 +159,20 @@ curl -o data/res10_300x300_ssd_iter_140000.caffemodel https://raw.githubusercont
 ```
 
 ### Step 5 — Download trained model weights
-Download from the releases section and place in `models/` folder:
-- `detector_a_efficientnet_v3_best.pth`
-- `detector_b_resnet50_v3_best.pth`
 
+Download all model weights from Google Drive and place them in the `models/` folder:
+
+📁 [Download Model Weights (Google Drive)](https://drive.google.com/drive/folders/12hN_pNgib0khqMFcOcIBtvC4XQDGvypJ?usp=sharing)
+
+| File | Size | Description |
+|------|------|-------------|
+| detector_a_efficientnet_best.pth | ~15 MB | Run 1 backup |
+| detector_a_efficientnet_v3_best.pth | ~15 MB | Run 3 ACTIVE |
+| detector_b_resnet50_best.pth | ~90 MB | Run 1 backup |
+| detector_b_resnet50_v3_best.pth | ~90 MB | Run 3 ACTIVE |
+
+> ⚠️ The system requires `detector_a_efficientnet_v3_best.pth` and
+> `detector_b_resnet50_v3_best.pth` to run. The other two are backups.
 ### Step 6 — Run the app
 ```bash
 streamlit run app.py
